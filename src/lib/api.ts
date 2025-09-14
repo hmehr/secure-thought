@@ -30,14 +30,21 @@ export async function api(
   }
 
   try {
-    const token = await getAuthToken();
-    
+    const dev = import.meta.env.VITE_DEV_AUTH === '1';
+    let token = await getAuthToken();
+    if (dev && !token?.startsWith('user:')) {
+      token = 'user:demo';
+    }
     const headers = {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
-      ...(init.headers || {})
+      ...(init.headers || {}),
     };
 
+    if (dev) {
+      console.log('[API dev] token =', token);
+      console.log('[API dev] auth header =', headers['Authorization']);
+    }
     const response = await fetch(`${baseUrl}${path}`, {
       ...init,
       headers,

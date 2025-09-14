@@ -1,6 +1,6 @@
 /**
- * Login page using Passage authentication
- * Handles passkey sign-up and sign-in
+ * Login page using Passage authentication (or Dev bypass)
+ * Works with VITE_DEV_AUTH=1 (dev) and Passage mode (VITE_DEV_AUTH=0 + VITE_PASSAGE_APP_ID)
  */
 
 import { useEffect, useState } from 'react';
@@ -13,9 +13,12 @@ import { ErrorBanner } from '@/components/ErrorBanner';
 import { Shield, Fingerprint, Smartphone } from 'lucide-react';
 
 export default function Login() {
-  const { isAuthenticated, loading, passage } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
   const [authError, setAuthError] = useState<string | null>(null);
+
+  const DEV_MODE = import.meta.env.VITE_DEV_AUTH === '1';
+  const PASSAGE_APP_ID = import.meta.env.VITE_PASSAGE_APP_ID as string | undefined;
 
   useEffect(() => {
     if (!loading && isAuthenticated) {
@@ -24,39 +27,22 @@ export default function Login() {
   }, [isAuthenticated, loading, navigate]);
 
   useEffect(() => {
-    // Listen for Passage auth events
-    const handleAuthSuccess = () => {
-      navigate('/app');
-    };
-
+    // Listen for Passage auth events (Passage mode) or the demo button (Dev mode)
+    const handleAuthSuccess = () => navigate('/app');
     const handleAuthError = (error: any) => {
       console.error('Authentication error:', error);
       setAuthError(error?.detail?.message || 'Authentication failed. Please try again.');
     };
-
-    // Add event listeners for passage auth
-    document.addEventListener('passage-auth-success', handleAuthSuccess);
-    document.addEventListener('passage-auth-error', handleAuthError);
-
+    document.addEventListener('passage-auth-success', handleAuthSuccess as any);
+    document.addEventListener('passage-auth-error', handleAuthError as any);
     return () => {
-      document.removeEventListener('passage-auth-success', handleAuthSuccess);
-      document.removeEventListener('passage-auth-error', handleAuthError);
+      document.removeEventListener('passage-auth-success', handleAuthSuccess as any);
+      document.removeEventListener('passage-auth-error', handleAuthError as any);
     };
   }, [navigate]);
 
   if (loading) {
     return <Loader message="Initializing secure authentication..." />;
-  }
-
-  if (!passage) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <ErrorBanner 
-          title="Configuration Error"
-          message="Authentication service is not properly configured. Please check your environment variables."
-        />
-      </div>
-    );
   }
 
   return (
@@ -69,7 +55,7 @@ export default function Login() {
           </div>
           <h1 className="text-3xl font-heading font-bold">Welcome to Secure Journal</h1>
           <p className="text-muted-foreground">
-            Sign in securely with your passkey - no passwords required
+            Sign in securely with your passkey — no passwords required
           </p>
         </div>
 
@@ -83,38 +69,52 @@ export default function Login() {
           </CardHeader>
           <CardContent>
             {authError && (
-              <ErrorBanner 
+              <ErrorBanner
                 message={authError}
                 onDismiss={() => setAuthError(null)}
                 className="mb-6"
               />
             )}
-            
+
             <div className="passage-auth-container space-y-4">
-              <div className="text-center p-8 border border-dashed border-border rounded-lg">
-                <p className="text-sm text-muted-foreground mb-4">
-                  Demo Mode: Click below to simulate passkey authentication
-                </p>
-                <Button 
-                  onClick={() => {
-                    // Simulate successful authentication
-                    const event = new CustomEvent('passage-auth-success', {
-                      detail: { user: { id: 'demo_user', email: 'demo@example.com' } }
-                    });
-                    document.dispatchEvent(event);
-                  }}
-                  className="w-full"
-                >
-                  <Shield className="h-4 w-4 mr-2" />
-                  Sign In with Demo Passkey
-                </Button>
-              </div>
-              
-              <div className="text-xs text-center text-muted-foreground">
-                In production, this would be replaced with:
-                <br />
-                <code className="bg-muted px-1 rounded">&lt;passage-auth app-id="your_app_id"&gt;&lt;/passage-auth&gt;</code>
-              </div>
+              {DEV_MODE ? (
+                // ---------- Dev mode: demo sign-in ----------
+                <div className="text-center p-8 border border-dashed border-border rounded-lg">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Dev Mode is ON — click below to simulate passkey authentication
+                  </p>
+                  <Button
+                    onClick={() => {
+                      const event = new CustomEvent('passage-auth-success', {
+                        detail: { user: { id: 'dev-user', email: 'demo@example.com' } },
+                      });
+                      document.dispatchEvent(event);
+                    }}
+                    className="w-full"
+                  >
+                    <Shield className="h-4 w-4 mr-2" />
+                    Sign In with Demo Passkey
+                  </Button>
+                </div>
+              ) : PASSAGE_APP_ID ? (
+                // ---------- Passage mode: real passkey UI ----------
+                <div className="p-2">
+                  {/* @ts-ignore - web component registered by @passageidentity/passage-elements */}
+                  <passage-auth app-id={PASSAGE_APP_ID}></passage-auth>
+                </div>
+              ) : (
+                // ---------- Misconfiguration ----------
+                <ErrorBanner
+                  title="Configuration Error"
+                  message='Missing VITE_PASSAGE_APP_ID. Set it in your frontend .env or enable dev mode with VITE_DEV_AUTH=1.'
+                />
+              )}
+
+              {!DEV_MODE && (
+                <div className="text-xs text-center text-muted-foreground">
+                  Powered by <code className="bg-muted px-1 rounded">Passage</code> passkeys
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -127,20 +127,18 @@ export default function Login() {
             </div>
             <div>
               <h3 className="font-medium text-sm">Biometric</h3>
-              <p className="text-xs text-muted-foreground">Fingerprint & Face ID</p>
+              <p className="text-xs text-muted-foreground">Fingerprint &amp; Face ID</p>
             </div>
           </div>
-          
           <div className="space-y-2">
             <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center mx-auto">
               <Smartphone className="h-5 w-5 text-muted-foreground" />
             </div>
             <div>
               <h3 className="font-medium text-sm">Device</h3>
-              <p className="text-xs text-muted-foreground">Phone & Computer</p>
+              <p className="text-xs text-muted-foreground">Phone &amp; Computer</p>
             </div>
           </div>
-          
           <div className="space-y-2">
             <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center mx-auto">
               <Shield className="h-5 w-5 text-muted-foreground" />
