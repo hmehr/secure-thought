@@ -1,19 +1,14 @@
-# Build
-FROM node:20-alpine AS build
-WORKDIR /app
-COPY app/package*.json ./
-RUN npm ci
-COPY app/ .
-RUN npm run build
+FROM python:3.12-slim
 
-# Serve static
-FROM nginx:alpine
-COPY --from=build /app/dist /usr/share/nginx/html
-# Optional: SPA-friendly config (fallback to /index.html)
-RUN printf 'server { \
-  listen 80; \
-  server_name _; \
-  root /usr/share/nginx/html; \
-  location / { try_files $uri /index.html; } \
-} \
-' > /etc/nginx/conf.d/default.conf
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY backend/ /app/
+
+# Use env DB_URL if you switch to a mounted volume: sqlite:////data/app.db
+ENV PORT=8080
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
