@@ -85,6 +85,34 @@ export async function api(
   return null;
 }
 
+export async function summarizeEntry(id: string, token?: string) {
+  const base = import.meta.env.VITE_API_BASE_URL;
+  if (!base) throw new Error('VITE_API_BASE_URL missing');
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const resp = await fetch(`${base}/entries/${id}/summarize`, {
+    method: 'POST',
+    headers,
+  });
+
+  // handle non-2xx
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => '');
+    throw new Error(
+      `Summarize failed ${resp.status}: ${
+        text || resp.statusText || 'Unknown error'
+      }`
+    );
+  }
+  const data = await resp.json();
+  // backend returns { summary: string }
+  return data.summary as string;
+}
+
 /**
  * Journal entries API methods.
  */

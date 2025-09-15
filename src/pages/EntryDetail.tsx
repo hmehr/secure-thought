@@ -1,21 +1,14 @@
-/**
- * Individual entry view and edit page
- */
-
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Trash2, Sparkles, Calendar, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Header } from '@/components/Header';
 import { Editor } from '@/components/Editor';
-import { Loader, PageLoader } from '@/components/Loader';
-import { ErrorBanner, PageError } from '@/components/ErrorBanner';
+import { PageLoader } from '@/components/Loader';
+import { PageError } from '@/components/ErrorBanner';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { withAuth } from '@/lib/auth';
-import { useAuth } from '@/lib/auth';
+import { withAuth, useAuth } from '@/lib/auth';
 import { JournalAPI } from '@/lib/api';
 import { JournalEntry, AISummary } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
@@ -24,7 +17,7 @@ function EntryDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { getAuthToken } = useAuth();
   const navigate = useNavigate();
-  
+
   const [entry, setEntry] = useState<JournalEntry | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +26,7 @@ function EntryDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summary, setSummary] = useState<AISummary | null>(null);
-  
+
   // Editor state
   const [editTitle, setEditTitle] = useState('');
   const [editBody, setEditBody] = useState('');
@@ -60,6 +53,7 @@ function EntryDetailPage() {
 
   useEffect(() => {
     loadEntry();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const handleSave = async () => {
@@ -69,22 +63,23 @@ function EntryDetailPage() {
     try {
       const updatedEntry = await journalAPI.updateEntry(id, {
         title: editTitle.trim() || 'Untitled',
-        body: editBody.trim()
+        body: editBody.trim(),
       });
 
       setEntry(updatedEntry);
       setIsEditing(false);
-      
+
       toast({
-        title: "Entry updated",
-        description: "Your changes have been saved successfully.",
+        title: 'Entry updated',
+        description: 'Your changes have been saved successfully.',
       });
     } catch (error: any) {
       console.error('Failed to update entry:', error);
       toast({
-        title: "Failed to save changes",
-        description: error.message || "There was an error updating your entry. Please try again.",
-        variant: "destructive",
+        title: 'Failed to save changes',
+        description:
+          error.message || 'There was an error updating your entry. Please try again.',
+        variant: 'destructive',
       });
     } finally {
       setIsSaving(false);
@@ -97,19 +92,20 @@ function EntryDetailPage() {
     setIsDeleting(true);
     try {
       await journalAPI.deleteEntry(id);
-      
+
       toast({
-        title: "Entry deleted",
-        description: "Your journal entry has been permanently deleted.",
+        title: 'Entry deleted',
+        description: 'Your journal entry has been permanently deleted.',
       });
 
       navigate('/app');
     } catch (error: any) {
       console.error('Failed to delete entry:', error);
       toast({
-        title: "Failed to delete entry",
-        description: error.message || "There was an error deleting your entry. Please try again.",
-        variant: "destructive",
+        title: 'Failed to delete entry',
+        description:
+          error.message || 'There was an error deleting your entry. Please try again.',
+        variant: 'destructive',
       });
       setIsDeleting(false);
     }
@@ -120,19 +116,20 @@ function EntryDetailPage() {
 
     setIsSummarizing(true);
     try {
-      const summaryData = await journalAPI.summarizeEntry(id);
+      const summaryData = await journalAPI.summarizeEntry(id); // returns AISummary
       setSummary(summaryData);
-      
+
       toast({
-        title: "Summary generated",
-        description: "AI has analyzed your entry and created a summary.",
+        title: 'Summary generated',
+        description: 'AI has analyzed your entry and created a summary.',
       });
     } catch (error: any) {
       console.error('Failed to summarize entry:', error);
       toast({
-        title: "Failed to generate summary",
-        description: error.message || "There was an error generating the AI summary. Please try again.",
-        variant: "destructive",
+        title: 'Failed to generate summary',
+        description:
+          error.message || 'There was an error generating the AI summary. Please try again.',
+        variant: 'destructive',
       });
     } finally {
       setIsSummarizing(false);
@@ -141,7 +138,7 @@ function EntryDetailPage() {
 
   const handleCancelEdit = () => {
     if (!entry) return;
-    
+
     setEditTitle(entry.title);
     setEditBody(entry.body);
     setIsEditing(false);
@@ -149,13 +146,13 @@ function EntryDetailPage() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString([], { 
+    return date.toLocaleDateString([], {
       weekday: 'long',
-      year: 'numeric', 
-      month: 'long', 
+      year: 'numeric',
+      month: 'long',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
@@ -167,7 +164,10 @@ function EntryDetailPage() {
     return (
       <PageError
         title="Entry not found"
-        message={error || "The journal entry you're looking for doesn't exist or you don't have permission to view it."}
+        message={
+          error ||
+          "The journal entry you're looking for doesn't exist or you don't have permission to view it."
+        }
         onRetry={loadEntry}
       />
     );
@@ -176,19 +176,14 @@ function EntryDetailPage() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       <main className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Navigation */}
         <div className="flex items-center gap-4 mb-8">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => navigate('/app')}
-            className="shrink-0"
-          >
+          <Button variant="ghost" size="icon" onClick={() => navigate('/app')} className="shrink-0">
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          
+
           <div className="flex-1">
             <h1 className="text-2xl font-heading font-bold truncate">
               {entry.title || 'Untitled Entry'}
@@ -262,12 +257,7 @@ function EntryDetailPage() {
                 <CardTitle className="flex items-center justify-between">
                   <span>Edit Entry</span>
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCancelEdit}
-                      disabled={isSaving}
-                    >
+                    <Button variant="outline" size="sm" onClick={handleCancelEdit} disabled={isSaving}>
                       Cancel
                     </Button>
                   </div>
@@ -292,30 +282,45 @@ function EntryDetailPage() {
                     {entry.body.split('\n').map((line, index) => {
                       // Headers
                       if (line.startsWith('### ')) {
-                        return <h3 key={index} className="text-lg font-semibold mt-6 mb-3 first:mt-0">{line.slice(4)}</h3>;
+                        return (
+                          <h3 key={index} className="text-lg font-semibold mt-6 mb-3 first:mt-0">
+                            {line.slice(4)}
+                          </h3>
+                        );
                       }
                       if (line.startsWith('## ')) {
-                        return <h2 key={index} className="text-xl font-semibold mt-6 mb-3 first:mt-0">{line.slice(3)}</h2>;
+                        return (
+                          <h2 key={index} className="text-xl font-semibold mt-6 mb-3 first:mt-0">
+                            {line.slice(3)}
+                          </h2>
+                        );
                       }
                       if (line.startsWith('# ')) {
-                        return <h1 key={index} className="text-2xl font-bold mt-6 mb-3 first:mt-0">{line.slice(2)}</h1>;
+                        return (
+                          <h1 key={index} className="text-2xl font-bold mt-6 mb-3 first:mt-0">
+                            {line.slice(2)}
+                          </h1>
+                        );
                       }
-                      
+
                       // Bold and italic
                       let processedLine = line
                         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                         .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                        .replace(/`(.*?)`/g, '<code class="bg-muted px-1 py-0.5 rounded text-sm font-mono">$1</code>');
-                      
+                        .replace(
+                          /`(.*?)`/g,
+                          '<code class="bg-muted px-1 py-0.5 rounded text-sm font-mono">$1</code>'
+                        );
+
                       // Empty lines
                       if (line.trim() === '') {
                         return <br key={index} />;
                       }
-                      
+
                       // Regular paragraphs
                       return (
-                        <p 
-                          key={index} 
+                        <p
+                          key={index}
                           className="mb-4 leading-relaxed text-foreground"
                           dangerouslySetInnerHTML={{ __html: processedLine }}
                         />

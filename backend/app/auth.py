@@ -213,12 +213,12 @@ async def verify_passage_token(token: str) -> dict:
                 auth_token = auth_token[7:].strip()
                 
             # Validate JWT using Passage
-            user_id = passage.auth.validate_jwt(auth_token)
+            user_id = passage.validateJwt(auth_token)
             if not user_id:
                 raise HTTPException(status_code=401, detail="Invalid token")
                 
             # Get user info
-            user = passage.user.get(user_id)
+            user = passage.getUser(user_id)
             print(f"[auth] User authenticated: {user_id}")
             
             return {

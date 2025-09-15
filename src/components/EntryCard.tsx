@@ -15,27 +15,35 @@ export function EntryCard({ entry }: EntryCardProps) {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
-    const diffInMs = now.getTime() - date.getTime();
-    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
 
-    if (diffInDays === 0) {
+    const diffMs = now.getTime() - date.getTime();
+    // Avoid negative “-1 days” when the ISO timestamp is slightly ahead of local time.
+    const diffDays = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+
+    if (diffDays === 0) {
+      // Same local day: show time
       return `Today at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-    } else if (diffInDays === 1) {
-      return 'Yesterday';
-    } else if (diffInDays < 7) {
-      return `${diffInDays} days ago`;
-    } else {
-      return date.toLocaleDateString([], { 
-        month: 'short', 
-        day: 'numeric',
-        year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
-      });
     }
+
+    if (diffDays === 1) {
+      return 'Yesterday';
+    }
+
+    if (diffDays < 7) {
+      return `${diffDays} days ago`;
+    }
+
+    // Fallback to a concise calendar date (year only if different from this year)
+    return date.toLocaleDateString([], {
+      month: 'short',
+      day: 'numeric',
+      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+    });
   };
 
   const getPreview = (body: string, maxLength: number = 150) => {
     if (body.length <= maxLength) return body;
-    
+
     // Find the last complete word within the limit
     const truncated = body.substring(0, maxLength);
     const lastSpace = truncated.lastIndexOf(' ');
@@ -52,13 +60,13 @@ export function EntryCard({ entry }: EntryCardProps) {
             </h3>
             <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0 mt-1" />
           </div>
-          
+
           <div className="flex items-center text-sm text-muted-foreground">
             <Calendar className="h-3 w-3 mr-1.5" />
             <span>{formatDate(entry.created_at)}</span>
           </div>
         </CardHeader>
-        
+
         {entry.body && (
           <CardContent className="pt-0">
             <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">

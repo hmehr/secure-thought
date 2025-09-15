@@ -4,6 +4,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from .db import Base, engine
 from .routes_auth import router as auth_router
 from .routes_entries import router as entries_router
+from dotenv import load_dotenv
+from pathlib import Path
+
+
+
+ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=ENV_PATH, override=True)
 
 # Initialize FastAPI app first
 app = FastAPI(title="Secure Journal API")

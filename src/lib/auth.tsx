@@ -23,7 +23,7 @@ type AuthCtx = {
   loading: boolean;
   passage: any | null;
   getAuthToken: () => Promise<string | null>;
-  signout: () => Promise<void>;
+  signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthCtx | null>(null);
@@ -93,42 +93,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const getAuthToken = useCallback(async () => {
+    const stored = readTokenFromStorageAny();
+    if (stored) return stored;
+
     try {
-      // First try storage
-      const storedToken = readTokenFromStorageAny();
-      if (storedToken) {
-        console.log('[auth] Using stored token');
-        return storedToken;
+      const g: any = (window as any).Passage;
+      if (g && typeof g.getAuthToken === 'function') {
+        const t = await g.getAuthToken();
+        if (t) return t;
       }
-
-      // If no stored token, check Passage auth
-      const p = await getPassage();
-      if (!p) {
-        console.log('[auth] No Passage instance available');
-        return null;
-      }
-
-      try {
-        const isAuthed = await p.isAuthenticated();
-        console.log('[auth] Passage auth status:', isAuthed);
-        
-        if (isAuthed) {
-          // Get new token using authToken() method
-          const token = await p.authToken();
-          if (token) {
-            console.log('[auth] Got new token from Passage');
-            return token;
-          }
-        }
-      } catch (e) {
-        console.error('[auth] Passage auth check failed:', e);
-      }
-
-      return null;
-    } catch (err) {
-      console.error('[auth] Token retrieval failed:', err);
-      return null;
+    } catch (e) {
+      console.warn('[auth] window.Passage.getAuthToken fallback failed:', e);
     }
+
+    return null;
   }, []);
 
   // Initialize auth state
@@ -187,28 +165,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [getAuthToken]);
 
-  const value = {
-    user,
-    isAuthenticated: !!user,
-    loading,
-    passage, // Now we're passing the actual Passage instance
-    getAuthToken,
-    signout: async () => {
-      try {
-        if (passage) {
-          await passage.signOut();
-        }
-        // Clear any stored tokens
-        if (APP_ID) {
-          localStorage.removeItem(`psg_auth_token_${APP_ID}`);
-        }
-      } catch (err) {
-        console.error('[auth] Signout error:', err);
+const value: AuthCtx = {
+  user,
+  isAuthenticated: !!user,
+  loading,
+  passage,
+  getAuthToken,
+  signOut: async () => {
+    try {
+      const p = passage ?? (await getPassage());
+
+      
+      if (p && typeof (p as any).signOut === 'function') {
+        await (p as any).signOut();
+      } else if (p?.session && typeof (p.session as any).signOut === 'function') {
+        await (p.session as any).signOut();
+      }    
+      if (APP_ID) {
+        localStorage.removeItem(`psg_auth_token_${APP_ID}`);
       }
-      setUser(null);
-      window.location.href = '/login';
-    }
-  };
+      document.cookie = 'psg_auth_token=; Max-Age=0; path=/;';
+      document.cookie = 'psg_user=; Max-Age=0; path=/;';
+    } catch (err) {
+      console.error('[auth] Signout error:', err);
+    }   
+    setUser(null);
+    window.location.replace('/login');
+  }
+};
 
   return (
     <AuthContext.Provider value={value}>
