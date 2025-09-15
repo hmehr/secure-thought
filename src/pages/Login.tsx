@@ -1,10 +1,10 @@
 /**
- * Login page using Passage authentication (or Dev bypass)
- * Works with VITE_DEV_AUTH=1 (dev) and Passage mode (VITE_DEV_AUTH=0 + VITE_PASSAGE_APP_ID)
+ * Login page using Passage authentication (or Dev bypass).
+ * Works with VITE_DEV_AUTH=1 (dev) and Passage mode (VITE_DEV_AUTH=0 + VITE_PASSAGE_APP_ID).
  */
 
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
@@ -12,34 +12,49 @@ import { Loader } from '@/components/Loader';
 import { ErrorBanner } from '@/components/ErrorBanner';
 import { Shield, Fingerprint, Smartphone } from 'lucide-react';
 
-export default function Login() {
+export function Login() {
   const { isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [authError, setAuthError] = useState<string | null>(null);
 
   const DEV_MODE = import.meta.env.VITE_DEV_AUTH === '1';
   const PASSAGE_APP_ID = import.meta.env.VITE_PASSAGE_APP_ID as string | undefined;
 
+  // If already authenticated, skip the page
   useEffect(() => {
-    if (!loading && isAuthenticated) {
-      navigate('/app');
+    if (isAuthenticated) {
+      const from = location.state?.from?.pathname || '/app';
+      navigate(from, { replace: true });
     }
-  }, [isAuthenticated, loading, navigate]);
+  }, [isAuthenticated, navigate, location]);
 
+  // Listen for Passage auth events and move to /app
   useEffect(() => {
-    // Listen for Passage auth events (Passage mode) or the demo button (Dev mode)
-    const handleAuthSuccess = () => navigate('/app');
-    const handleAuthError = (error: any) => {
-      console.error('Authentication error:', error);
-      setAuthError(error?.detail?.message || 'Authentication failed. Please try again.');
+    if (DEV_MODE) return;
+
+    const toApp = () => navigate('/app', { replace: true });
+    const onAuthSuccess = () => toApp();
+    const onRegisterSuccess = () => toApp();
+    const onAuthError = (e: any) => {
+      console.error('Passage auth error:', e);
+      setAuthError(
+        e?.detail?.message ||
+          e?.message ||
+          'Authentication failed. Please try again.'
+      );
     };
-    document.addEventListener('passage-auth-success', handleAuthSuccess as any);
-    document.addEventListener('passage-auth-error', handleAuthError as any);
+
+    document.addEventListener('passage-auth-success', onAuthSuccess as any);
+    document.addEventListener('passage-register-success', onRegisterSuccess as any);
+    document.addEventListener('passage-auth-error', onAuthError as any);
+
     return () => {
-      document.removeEventListener('passage-auth-success', handleAuthSuccess as any);
-      document.removeEventListener('passage-auth-error', handleAuthError as any);
+      document.removeEventListener('passage-auth-success', onAuthSuccess as any);
+      document.removeEventListener('passage-register-success', onRegisterSuccess as any);
+      document.removeEventListener('passage-auth-error', onAuthError as any);
     };
-  }, [navigate]);
+  }, [DEV_MODE, navigate]);
 
   if (loading) {
     return <Loader message="Initializing secure authentication..." />;
@@ -78,7 +93,6 @@ export default function Login() {
 
             <div className="passage-auth-container space-y-4">
               {DEV_MODE ? (
-                // ---------- Dev mode: demo sign-in ----------
                 <div className="text-center p-8 border border-dashed border-border rounded-lg">
                   <p className="text-sm text-muted-foreground mb-4">
                     Dev Mode is ON — click below to simulate passkey authentication
@@ -99,14 +113,19 @@ export default function Login() {
               ) : PASSAGE_APP_ID ? (
                 // ---------- Passage mode: real passkey UI ----------
                 <div className="p-2">
-                  {/* @ts-ignore - web component registered by @passageidentity/passage-elements */}
-                  <passage-auth app-id={PASSAGE_APP_ID}></passage-auth>
+                  {/* @ts-ignore – web component is registered by @passageidentity/passage-elements */}
+                  <passage-auth
+                    app-id={PASSAGE_APP_ID}
+                    auth-origin={window.location.origin}
+                    redirect-uri="/app"
+                    login-url="/login"
+                  ></passage-auth>
                 </div>
               ) : (
                 // ---------- Misconfiguration ----------
                 <ErrorBanner
                   title="Configuration Error"
-                  message='Missing VITE_PASSAGE_APP_ID. Set it in your frontend .env or enable dev mode with VITE_DEV_AUTH=1.'
+                  message="Missing VITE_PASSAGE_APP_ID. Set it in your frontend .env or enable dev mode with VITE_DEV_AUTH=1."
                 />
               )}
 
@@ -127,7 +146,7 @@ export default function Login() {
             </div>
             <div>
               <h3 className="font-medium text-sm">Biometric</h3>
-              <p className="text-xs text-muted-foreground">Fingerprint &amp; Face ID</p>
+              <p className="text-xs text-muted-foreground">Fingerprint & Face ID</p>
             </div>
           </div>
           <div className="space-y-2">
@@ -136,7 +155,7 @@ export default function Login() {
             </div>
             <div>
               <h3 className="font-medium text-sm">Device</h3>
-              <p className="text-xs text-muted-foreground">Phone &amp; Computer</p>
+              <p className="text-xs text-muted-foreground">Phone & Computer</p>
             </div>
           </div>
           <div className="space-y-2">

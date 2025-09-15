@@ -1,6 +1,8 @@
 /**
- * API client for communicating with the backend
- * Automatically attaches Passage JWT tokens to requests
+ * API client for communicating with the backend.
+ * - Attaches Passage JWT (Bearer) when available
+ * - Gracefully handles dev-bypass
+ * - Normalizes error handling
  */
 
 import { JournalEntry, JournalEntryInput, AISummary } from './types';
@@ -17,77 +19,77 @@ class APIError extends Error {
 }
 
 /**
- * Base API function that handles authentication and error responses
+ * Base API function that handles auth and error responses.
  */
 export async function api(
-  path: string, 
+  path: string,
   init: RequestInit = {},
-  getAuthToken: () => Promise<string>
+  getAuthToken: () => Promise<string | null>
 ): Promise<any> {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL;
-  if (!baseUrl) {
-    throw new Error('VITE_API_BASE_URL environment variable is required');
+  const baseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
+  if (!baseUrl) throw new Error('VITE_API_BASE_URL environment variable is required');
+
+  const dev = import.meta.env.VITE_DEV_AUTH === '1';
+
+  // Resolve token (may be null)
+  let token = await getAuthToken();
+  if (dev && !token) token = 'user:demo';
+
+  // Build headers safely
+  const headers = new Headers(init.headers ?? {});
+  if (init.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
   }
 
-  try {
-    const dev = import.meta.env.VITE_DEV_AUTH === '1';
-    let token = await getAuthToken();
-    if (dev && !token?.startsWith('user:')) {
-      token = 'user:demo';
-    }
-    const headers = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      ...(init.headers || {}),
-    };
+  // Compose request
+  const reqInit: RequestInit = {
+    ...init,
+    headers,
+    credentials: 'include', // allow cookies if backend sets any
+    cache: 'no-store',
+  };
 
-    if (dev) {
-      console.log('[API dev] token =', token);
-      console.log('[API dev] auth header =', headers['Authorization']);
-    }
-    const response = await fetch(`${baseUrl}${path}`, {
-      ...init,
-      headers,
-      cache: 'no-store'
-    });
+  // Fire request
+  const res = await fetch(`${baseUrl}${path}`, reqInit);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorMessage = errorText;
-      
-      try {
-        const errorData = JSON.parse(errorText);
-        errorMessage = errorData.message || errorData.error || errorText;
-      } catch {
-        // Use raw text if not JSON
-      }
+  // Fast path: 204/205
+  if (res.status === 204 || res.status === 205) return null;
 
-      throw new APIError(errorMessage, response.status);
+  // Error handling
+  if (!res.ok) {
+    const raw = await res.text().catch(() => '');
+    let message = raw || `${res.status} ${res.statusText}`;
+    let code: string | undefined;
+
+    try {
+      const data = JSON.parse(raw);
+      message = data.detail?.message || data.detail || data.message || data.error || message;
+      code = data.code || data.error_code;
+    } catch {
+      // non-JSON, keep message
     }
 
-    // Handle empty responses
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      return await response.json();
-    }
-    
-    return null;
-  } catch (error) {
-    if (error instanceof APIError) {
-      throw error;
-    }
-    throw new APIError(
-      error instanceof Error ? error.message : 'An unexpected error occurred',
-      0
-    );
+    throw new APIError(message, res.status, code);
   }
+
+  // Success payload
+  const ct = res.headers.get('content-type') || '';
+  if (ct.includes('application/json')) {
+    return res.json();
+  }
+  // If you prefer to return text for non-JSON, uncomment:
+  // return res.text();
+  return null;
 }
 
 /**
- * Journal entries API methods
+ * Journal entries API methods.
  */
 export class JournalAPI {
-  constructor(private getAuthToken: () => Promise<string>) {}
+  constructor(private getAuthToken: () => Promise<string | null>) {}
 
   async getEntries(): Promise<JournalEntry[]> {
     return api('/entries', { method: 'GET' }, this.getAuthToken);
@@ -100,14 +102,14 @@ export class JournalAPI {
   async createEntry(entry: JournalEntryInput): Promise<JournalEntry> {
     return api('/entries', {
       method: 'POST',
-      body: JSON.stringify(entry)
+      body: JSON.stringify(entry),
     }, this.getAuthToken);
   }
 
   async updateEntry(id: string, entry: JournalEntryInput): Promise<JournalEntry> {
     return api(`/entries/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(entry)
+      body: JSON.stringify(entry),
     }, this.getAuthToken);
   }
 

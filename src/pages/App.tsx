@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Outlet } from 'react-router-dom';
 import { Search, Plus, BookOpen, Calendar } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -17,12 +17,14 @@ import { JournalAPI } from '@/lib/api';
 import { JournalEntry } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
 
-function AppDashboard() {
+function AppDashboardComponent() {
   const { getAuthToken } = useAuth();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  console.log('AppDashboard rendering:', { loading, error, entriesCount: entries.length });
 
   const journalAPI = useMemo(() => new JournalAPI(getAuthToken), [getAuthToken]);
 
@@ -166,9 +168,12 @@ function AppDashboard() {
             ))}
           </div>
         )}
+
+        <Outlet /> {/* This will render the nested routes */}
       </main>
     </div>
   );
 }
 
-export default withAuth(AppDashboard);
+export const AppDashboard = withAuth(AppDashboardComponent);
+export default AppDashboard;
