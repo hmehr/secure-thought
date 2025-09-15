@@ -14,10 +14,11 @@ FROM nginx:alpine
 ENV WEBROOT=/usr/share/nginx/html
 ENV PORT=8080
 
-# copy the built app
+# Copy the built app
 COPY --from=build /app/dist ${WEBROOT}
 
-RUN printf 'server {\n\
+RUN mkdir -p /etc/nginx/templates && \
+    printf 'server {\n\
   listen 0.0.0.0:${PORT};\n\
   server_name _;\n\
   root '"${WEBROOT}"';\n\
