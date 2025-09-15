@@ -1,19 +1,27 @@
-FROM python:3.12-slim
-
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
-
+# --- Build stage ---
+FROM node:20-alpine AS build
 WORKDIR /app
 
-# Install deps
-COPY backend/requirements.txt .
-RUN python -m pip install --upgrade pip setuptools wheel && \
-    pip install -r requirements.txt
+COPY package*.json ./
+RUN npm ci
 
-# Copy app code
-COPY backend/ /app/
+COPY . .
+RUN npm run build   # generates /dist folder
 
-# App port
-ENV PORT=8080
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# --- Serve stage ---
+FROM nginx:alpine
+COPY --from=build /app/dist /usr/share/nginx/html
+
+# optional: SPA fallback (so React Router works on reload)
+RUN printf 'server {\n\
+    listen 80;\n\
+    server_name _;\n\
+    root /usr/share/nginx/html;\n\
+    index index.html;\n\
+    location / {\n\
+        try_files $uri /index.html;\n\
+    }\n\
+}\n' > /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

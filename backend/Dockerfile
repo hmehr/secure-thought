@@ -1,25 +1,19 @@
-# --- Build stage ---
-FROM node:20-alpine AS build
-WORKDIR /web
+FROM python:3.12-slim
 
-# copy only manifests first for better layer caching
-COPY package*.json ./
-RUN npm ci
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
 
-# now copy the rest of the frontend (root contains src/, public/, vite config, etc.)
-COPY . .
-RUN npm run build
+WORKDIR /app
 
-# --- Runtime stage (serve static with nginx) ---
-FROM nginx:alpine
+# Install deps
+COPY backend/requirements.txt .
+RUN python -m pip install --upgrade pip setuptools wheel && \
+    pip install -r requirements.txt
 
-# copy built assets
-COPY --from=build /web/dist /usr/share/nginx/html
+# Copy app code
+COPY backend/ /app/
 
-# SPA fallback to /index.html
-RUN printf 'server {\n\
-  listen 80;\n\
-  server_name _;\n\
-  root /usr/share/nginx/html;\n\
-  location / { try_files $uri /index.html; }\n\
-}\n' > /etc/nginx/conf.d/default.conf
+# App port
+ENV PORT=8080
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
