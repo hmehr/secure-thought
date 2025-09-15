@@ -7,12 +7,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # Install deps
-COPY backend/requirements.txt .
+COPY requirements.txt .
 RUN python -m pip install --upgrade pip setuptools wheel && \
     pip install -r requirements.txt
 
 # Copy app code
-COPY backend/ /app/
+COPY . /app/
 
 # App port
 ENV PORT=8080
