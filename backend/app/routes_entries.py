@@ -114,7 +114,7 @@ async def summarize_entry(
     if not entry:
         raise HTTPException(status_code=404, detail="Entry not found")
 
-    api_key = OnePasswordConnect.get_llm_api_key()
+    api_key = await OnePasswordConnect.get_llm_api_key()
     if not api_key:
         raise HTTPException(status_code=500, detail="LLM_API_KEY missing on server")
 
