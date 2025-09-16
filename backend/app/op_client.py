@@ -1,48 +1,47 @@
 # app/op_client.py
 import os
-import httpx
+import asyncio
+from typing import Optional
+from onepassword.client import Client
 
-OP_CONNECT_TOKEN = os.getenv("OP_CONNECT_TOKEN")
-# Secret reference like: op://Journal/LLM_API_KEY/credential
-OP_SECRET_REF   = os.getenv("OP_SECRET_REF")  
+OP_SECRET_REF = os.getenv("OP_SECRET_REF") 
 
-REGION = (os.getenv("OP_REGION") or "us").lower()
-BASES = {
-    "us": "https://api.1password.com",
-    "eu": "https://api.1password.eu",
-    "ca": "https://api.1password.ca",
-}
-CONNECT_BASE = BASES.get(REGION, BASES["us"])
+
+_OP_TOKEN = os.getenv("OP_CONNECT_TOKEN")
 
 class OnePasswordConnect:
+    _client: Optional[Client] = None
+    _lock = asyncio.Lock()
+
     @staticmethod
-    async def get_secret_async(secret_ref: str) -> str | None:
+    async def _get_client() -> Client:
+        if OnePasswordConnect._client is not None:
+            return OnePasswordConnect._client
+        if not _OP_TOKEN:
+            raise RuntimeError("OP_CONNECT_TOKEN")
+
+        async with OnePasswordConnect._lock:
+            if OnePasswordConnect._client is None:
+                OnePasswordConnect._client = await Client.authenticate(
+                    auth=_OP_TOKEN,
+                    integration_name="SecureThought",
+                    integration_version="v1"
+                )
+        return OnePasswordConnect._client
+
+    @staticmethod
+    async def get_secret_async(secret_ref: str) -> Optional[str]:
         """
-        Resolve a 1Password secret reference (op://vault/item/field) using the
-        1Password SDK HTTP API. This version is PURELY ASYNC.
+        Resolve a 1Password secret reference (op://vault/item/field) using the SDK (async).
         """
-        if not OP_CONNECT_TOKEN:
-            return None
         if not secret_ref:
             return None
-
-        # Resolve secret via 1Password Secrets/SDK HTTP endpoint
-        # (Using the public SDK endpoint for secret-reference resolution)
-        url = f"{CONNECT_BASE}/v1/secrets/resolve"
-        headers = {"Authorization": f"Bearer {OP_CONNECT_TOKEN}"}
-        payload = {"references": [secret_ref]}
-
-        async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.post(url, headers=headers, json=payload)
-            r.raise_for_status()
-            data = r.json()
-            # response shape: {"secrets":[{"reference":"...","value":"..."}]}
-            try:
-                return data["secrets"][0]["value"]
-            except Exception:
-                return None
+        client = await OnePasswordConnect._get_client()
+        # returns the raw string value
+        return await client.secrets.resolve(secret_ref)
 
     @staticmethod
-    async def get_llm_api_key() -> str | None:
-        ref = OP_SECRET_REF
-        return await OnePasswordConnect.get_secret_async(ref)
+    async def get_llm_api_key() -> Optional[str]:
+        if not OP_SECRET_REF:
+            return None
+        return await OnePasswordConnect.get_secret_async(OP_SECRET_REF)
