@@ -2,10 +2,16 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
+# Install deps first (better cache)
 COPY package*.json ./
 RUN npm ci
 
-COPY . .
+# Copy only what's needed to build
+COPY tsconfig*.json vite.config.* index.html ./
+COPY src ./src
+COPY public ./public
+
+
 RUN npm run build  # produces /dist
 
 # --- Serve stage ---
@@ -15,8 +21,9 @@ ENV WEBROOT=/usr/share/nginx/html
 ENV PORT=8080
 
 # Copy the built app
-COPY --from=build /app/dist ${WEBROOT}
+COPY --from=build /app/dist/ ${WEBROOT}
 
+# Create template dir and write nginx site
 RUN mkdir -p /etc/nginx/templates && \
     printf 'server {\n\
   listen 0.0.0.0:${PORT};\n\
