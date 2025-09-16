@@ -14,27 +14,22 @@ FROM nginx:alpine
 # Copy built app
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Create nginx config with Railway's PORT
-RUN printf 'server {\n\
-    listen 8080;\n\
-    listen [::]:8080;\n\
-    server_name _;\n\
-    root /usr/share/nginx/html;\n\
-    index index.html;\n\
-    \n\
-    port_in_redirect off;\n\
-    absolute_redirect off;\n\
-    \n\
-    location / {\n\
-        try_files $uri $uri/ /index.html;\n\
-    }\n\
-    \n\
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {\n\
-        expires 1y;\n\
-        add_header Cache-Control "public, immutable";\n\
-    }\n\
-}' > /etc/nginx/conf.d/default.conf
+# Create nginx config template that will use PORT env variable
+RUN echo 'server { \
+    listen $PORT; \
+    server_name _; \
+    root /usr/share/nginx/html; \
+    index index.html; \
+    port_in_redirect off; \
+    absolute_redirect off; \
+    location / { \
+        try_files $uri $uri/ /index.html; \
+    } \
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ { \
+        expires 1y; \
+        add_header Cache-Control "public, immutable"; \
+    } \
+}' > /etc/nginx/templates/default.conf.template
 
-EXPOSE 8080
-
-CMD ["nginx", "-g", "daemon off;"]
+# Use shell form to substitute PORT at runtime
+CMD sh -c "envsubst '\$PORT' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
