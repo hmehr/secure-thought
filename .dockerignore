@@ -1,0 +1,7 @@
+node_modules
+dist
+.vscode
+.git
+Dockerfile
+backend/*
+!backend  # keep the folder, the backend service builds it separately via its own dockerfile
