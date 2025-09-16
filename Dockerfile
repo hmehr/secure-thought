@@ -2,6 +2,16 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
+# Receive Railway vars as build args
+ARG VITE_PASSAGE_APP_ID
+ARG VITE_API_BASE_URL
+ARG VITE_DEV_AUTH
+
+# Expose to the build environment
+ENV VITE_PASSAGE_APP_ID=${VITE_PASSAGE_APP_ID}
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ENV VITE_DEV_AUTH=${VITE_DEV_AUTH}
+
 COPY package*.json ./
 RUN npm ci
 
