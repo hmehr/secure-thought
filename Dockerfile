@@ -16,36 +16,61 @@ RUN npm run build  # produces /dist
 # --- Serve stage ---
 FROM nginx:alpine
 
-ENV WEBROOT=/usr/share/nginx/html
 ENV PORT=8080
 
 # Copy the built app
-COPY --from=build /app/dist/ ${WEBROOT}
+COPY --from=build /app/dist /usr/share/nginx/html
 
-# Create template dir and write nginx site with proper proxy headers
-RUN mkdir -p /etc/nginx/templates && \
-    printf 'server {\n\
-  listen 0.0.0.0:${PORT};\n\
-  server_name _;\n\
-  root '"${WEBROOT}"';\n\
-  index index.html;\n\
-  \n\
-  # Important: Tell nginx it is behind a proxy\n\
-  port_in_redirect off;\n\
-  absolute_redirect off;\n\
-  \n\
-  # Handle proxy headers\n\
-  location / {\n\
-    try_files $uri $uri/ /index.html;\n\
+# Create nginx config
+RUN echo 'server { \n\
+    listen 0.0.0.0:'"$PORT"'; \n\
+    listen [::]:'"$PORT"'; \n\
+    server_name _; \n\
+    root /usr/share/nginx/html; \n\
+    index index.html; \n\
     \n\
-    # Ensure proper headers for proxied requests\n\
-    proxy_set_header Host $host;\n\
-    proxy_set_header X-Real-IP $remote_addr;\n\
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n\
-    proxy_set_header X-Forwarded-Proto $scheme;\n\
-  }\n\
-}\n' > /etc/nginx/templates/site.conf.template
+    port_in_redirect off; \n\
+    absolute_redirect off; \n\
+    server_name_in_redirect off; \n\
+    \n\
+    location / { \n\
+        try_files $uri $uri/ /index.html; \n\
+    } \n\
+    \n\
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ { \n\
+        expires 1y; \n\
+        add_header Cache-Control "public, immutable"; \n\
+    } \n\
+}' > /etc/nginx/conf.d/default.conf
 
-CMD /bin/sh -c 'envsubst < /etc/nginx/templates/site.conf.template > /etc/nginx/conf.d/default.conf && exec nginx -g "daemon off;"'
+# Remove the default nginx config
+RUN rm -f /etc/nginx/nginx.conf
+
+# Create a new main nginx config
+RUN echo 'user nginx; \n\
+worker_processes auto; \n\
+error_log /var/log/nginx/error.log warn; \n\
+pid /var/run/nginx.pid; \n\
+\n\
+events { \n\
+    worker_connections 1024; \n\
+} \n\
+\n\
+http { \n\
+    include /etc/nginx/mime.types; \n\
+    default_type application/octet-stream; \n\
+    \n\
+    sendfile on; \n\
+    keepalive_timeout 65; \n\
+    \n\
+    # Disable port in redirects globally \n\
+    port_in_redirect off; \n\
+    absolute_redirect off; \n\
+    server_name_in_redirect off; \n\
+    \n\
+    include /etc/nginx/conf.d/*.conf; \n\
+}' > /etc/nginx/nginx.conf
 
 EXPOSE 8080
+
+CMD ["nginx", "-g", "daemon off;"]
