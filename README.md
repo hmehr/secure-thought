@@ -124,6 +124,7 @@ Backend will be available at `http://localhost:8080`
 4. Railway auto-detects `PORT` for each service (backend: 8080, frontend: 80)  
 
 ### Docker Compose
+Used only for the local development. Environment variables defined above must be set prior to running.
 ```bash
 docker compose up --build
 ```
@@ -138,9 +139,10 @@ secure-journal/
 ├── backend/              # FastAPI backend
 │   ├── app/              # Application code
 │   └── Dockerfile
-├── frontend/             # React/Vite frontend
-│   └── Dockerfile
-├── docker-compose.yml
+├── src/             # React/Vite frontend
+├── Dockerfile       # frontend docker file
+├── docker-compose.yml #for the local development
+├── .env             # frontend env file
 └── README.md
 ```
 

@@ -39,8 +39,8 @@ endpoint to **summarize** an entry using an LLM API key that is fetched securely
 ## Environment Variables
 See `.env.example` for the full list. Key ones:
 - `DB_URL` — e.g., `sqlite:///./app.db` (default), or Postgres: `postgresql+psycopg://user:pass@host/db`
-- `FRONTEND_ORIGIN` — your Lovable domain for CORS
-- `PASSAGE_APP_ID` — your Passage app id
+- `FRONTEND_ORIGIN` — frontend domain for CORS
+- `PASSAGE_APP_ID` — Passage app id
 - `PASSAGE_ISSUER` — expected issuer (optional, but recommended)
 - `PASSAGE_JWKS_URL` — JWKS URL for token verification (recommended for prod). If absent and `PASSAGE_DEV_BYPASS=0`, verification will fail.
 - `PASSAGE_DEV_BYPASS` — `1` to bypass auth locally (accepts `user:<id>`), `0` for real verification
@@ -64,21 +64,18 @@ Provide:
 - `PASSAGE_ISSUER` (issuer check, optional but safer)
 - `PASSAGE_JWKS_URL` (JWKS endpoint provided by Passage for your app)
 
-If you can't configure JWKS right away, set `PASSAGE_DEV_BYPASS=1` until your
-Passage config is ready.
 
 ## 1Password Connect quick setup
-- Run/connect to a 1Password **Connect** server.
+- Connect to the 1Password **Connect** server.
 - Set:
   ```
-  OP_CONNECT_HOST=https://<connect-host>
-  OP_CONNECT_TOKEN=<token>
+  OP_CONNECT_TOKEN=1Password service account token	
   OP_SECRET_REF=op://<Vault>/<Item>/<field>
   ```
-- The backend will resolve the secret (your LLM API key) at runtime before
+- The backend will resolve the secret (LLM API key) at runtime before
   calling the model API.
 
 ## Deploy
-- Render/Fly/Heroku (or any Docker host) works well.
+- Use Railway services.
 - Set the environment vars in the service dashboard.
-- Use a managed Postgres for persistence in production.
+- Use a managed Postgres for persistence in production instead of SQLite
