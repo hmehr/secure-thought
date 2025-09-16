@@ -1,34 +1,45 @@
 # Secure Journal
 
-A modern, secure journal application built with React, TypeScript, and Passage authentication. Create, edit, and manage your personal journal entries with passwordless authentication using passkeys.
+A modern, secure journal application built with React, TypeScript, FastAPI, and Passage authentication. Create, edit, and manage your personal journal entries with passwordless authentication using passkeys. Entries can be summarized with OpenAI, and all secrets are managed securely with **1Password Connect**.
 
-![Secure Journal](https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=400&fit=crop&q=80)
+
+
+---
 
 ## Features
 
-- 🔐 **Passwordless Authentication** - Sign in with passkeys, biometrics, or hardware security keys
-- 📝 **Rich Text Editor** - Write entries with Markdown support and live preview
-- 🤖 **AI Summarization** - Generate AI-powered summaries of your entries
-- 🔍 **Search & Filter** - Find entries quickly with client-side search
-- 📱 **Responsive Design** - Works perfectly on desktop and mobile
-- 🌙 **Dark Mode** - Automatic dark/light theme support
-- 🔒 **Secure by Design** - No passwords, no secrets stored in frontend
+- 🔐 **Passwordless Authentication** – Sign in with passkeys, biometrics, or hardware security keys (Passage by 1Password)  
+- 📝 **Rich Text Editor** – Write entries with Markdown support and live preview  
+- 🤖 **AI Summarization** – Generate OpenAI-powered summaries of your entries  
+- 🔍 **Search & Filter** – Find entries quickly with client-side search  
+- 📱 **Responsive Design** – Works perfectly on desktop and mobile  
+- 🌙 **Dark Mode** – Automatic dark/light theme support  
+- 🔒 **Secure by Design** – No passwords, no secrets stored in frontend  
+
+---
 
 ## Technology Stack
 
-- **Frontend**: React 18, TypeScript, Vite
-- **Styling**: Tailwind CSS, shadcn/ui components
-- **Authentication**: Passage by 1Password (WebAuthn/Passkeys)
-- **Routing**: React Router v6
-- **State Management**: React hooks and context
-- **Build Tool**: Vite with SWC
+- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, shadcn/ui  
+- **Backend**: FastAPI (Python), Uvicorn  
+- **Authentication**: Passage (WebAuthn/Passkeys)  
+- **Secrets Management**: 1Password Connect SDK (Python)  
+- **AI**: OpenAI GPT models (configurable)  
+- **Deployment**: Docker, Docker Compose, Railway  
+
+---
 
 ## Getting Started
 
 ### Prerequisites
+- Node.js 18+ and npm  
+- Python 3.11+  
+- Docker & Docker Compose  
+- A Passage account ([console.passage.id](https://console.passage.id/))  
+- A 1Password account with a service account token  
+- An OpenAI API key stored securely in 1Password  
 
-- Node.js 18+ and npm
-- A Passage account (free at [console.passage.id](https://console.passage.id/))
+---
 
 ### Installation
 
@@ -38,148 +49,113 @@ A modern, secure journal application built with React, TypeScript, and Passage a
    cd secure-journal
    ```
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Set up environment variables**
+2. **Set up environment variables**  
+   Copy the example files and fill in your values:
    ```bash
    cp .env.example .env
+   cp backend/.env.example backend/.env
    ```
 
-4. **Configure Passage Authentication**
-   - Sign up at [console.passage.id](https://console.passage.id/)
-   - Create a new app
-   - Copy your App ID to `.env`:
-     ```
-     VITE_PASSAGE_APP_ID=your_passage_app_id_here
-     ```
-
-5. **Configure Backend API**
-   - Set your backend API URL in `.env`:
-     ```
-     VITE_API_BASE_URL=http://localhost:3000
-     ```
-
-6. **Start the development server**
+3. **Start with Docker Compose**
    ```bash
-   npm run dev
+   docker compose up --build
    ```
 
-The application will be available at `http://localhost:8080`.
+Frontend will be available at `http://localhost:5173`  
+Backend will be available at `http://localhost:8080`  
+
+---
 
 ## Environment Variables
 
+### Frontend
 | Variable | Description | Required | Example |
 |----------|-------------|----------|---------|
-| `VITE_PASSAGE_APP_ID` | Your Passage application ID | Yes | `app_ABC123...` |
-| `VITE_API_BASE_URL` | Backend API base URL | Yes | `https://api.yourapp.com` |
+| `VITE_PASSAGE_APP_ID` | Passage application ID | Yes | `app_ABC123...` |
+| `VITE_API_BASE_URL` | Backend API base URL | Yes | `http://localhost:8080` |
+| `VITE_DEV_AUTH` | Enable dev bypass auth | No | `1` |
 
-## API Integration
+### Backend
+| Variable | Description | Required | Example |
+|----------|-------------|----------|---------|
+| `FRONTEND_ORIGIN` | Allowed frontend origin | Yes | `http://localhost:5173` |
+| `PASSAGE_APP_ID` | Passage app ID | Yes | `app_ABC123...` |
+| `PASSAGE_API_KEY` | Passage API key | Yes | `sk_test_ABC123...` |
+| `PASSAGE_ISSUER` | Passage issuer URL | Yes | `https://auth.passage.id/v1/apps/xyz` |
+| `PASSAGE_JWKS_URL` | JWKS URL for Passage app | Yes | `https://auth.passage.id/v1/apps/xyz/.well-known/jwks.json` |
+| `OP_CONNECT_TOKEN` | 1Password service account token | Yes | `ops_***************************` |
+| `OP_SECRET_REF` | 1Password secret reference for OpenAI key | Yes | `op://Journal/LLM_API_KEY/credential` |
+| `LLM_MODEL` | OpenAI model to use | No | `gpt-4o-mini` |
 
-The frontend expects these backend endpoints:
+---
+
+## API Endpoints
 
 ### Entries
-- `GET /entries` - List all entries for authenticated user
-- `POST /entries` - Create new entry
-- `GET /entries/:id` - Get specific entry
-- `PUT /entries/:id` - Update entry
-- `DELETE /entries/:id` - Delete entry
+- `GET /entries` – List all entries  
+- `POST /entries` – Create new entry  
+- `GET /entries/:id` – Get entry  
+- `PUT /entries/:id` – Update entry  
+- `DELETE /entries/:id` – Delete entry  
 
 ### AI Features
-- `POST /entries/:id/summarize` - Generate AI summary
+- `POST /entries/:id/summarize` – Generate AI summary with OpenAI  
 
-### Authentication
-All API requests include `Authorization: Bearer <jwt_token>` where the JWT is fetched fresh from Passage for each request.
+### Auth
+- `GET /auth/me` – Validate Passage JWT  
+
+---
 
 ## Security Model
 
-### Frontend Security
-- **No secrets stored**: All sensitive data lives in the backend
-- **Fresh JWT tokens**: Authentication tokens are fetched per-request, not stored
-- **Passkey authentication**: Uses WebAuthn for passwordless, phishing-resistant auth
-- **Secure defaults**: All API calls use secure headers and HTTPS in production
+- **No frontend secrets** – API keys & tokens live only in backend  
+- **JWT validation** – Fresh tokens fetched from Passage and verified server-side  
+- **1Password integration** – Backend retrieves secrets (e.g., OpenAI API key) from 1Password Connect  
+- **HTTPS enforced in production**  
 
-### Authentication Flow
-1. User visits app and is redirected to `/login`
-2. Passage handles passkey authentication
-3. On success, user is redirected to `/app`
-4. Each API call fetches a fresh JWT from Passage
-5. JWT is sent to backend for authorization
+---
 
 ## Deployment
 
-### Vercel (Recommended)
-1. Push your code to GitHub
-2. Connect repository to Vercel
-3. Set environment variables in Vercel dashboard:
-   - `VITE_PASSAGE_APP_ID`
-   - `VITE_API_BASE_URL`
-4. Deploy
+### Railway
+1. Push repo to GitHub  
+2. Create two Railway services (frontend + backend)  
+3. Configure environment variables in Railway dashboard  
+4. Railway auto-detects `PORT` for each service (backend: 8080, frontend: 80)  
 
-### Other Platforms
-Build the project and serve the `dist` folder:
+### Docker Compose
 ```bash
-npm run build
+docker compose up --build
 ```
+
+---
 
 ## Development
 
 ### Project Structure
 ```
-src/
-├── components/          # Reusable UI components
-├── lib/                # Utilities and API clients
-├── pages/              # Route components
-├── hooks/              # Custom React hooks
-└── index.css           # Global styles and design system
+secure-journal/
+├── backend/              # FastAPI backend
+│   ├── app/              # Application code
+│   └── Dockerfile
+├── frontend/             # React/Vite frontend
+│   └── Dockerfile
+├── docker-compose.yml
+└── README.md
 ```
-
-### Key Components
-- `AuthProvider` - Manages Passage authentication state
-- `withAuth` - HOC for protecting routes
-- `JournalAPI` - Type-safe API client
-- `Editor` - Markdown editor with preview
-- `Header` - Navigation and user menu
-
-### Available Scripts
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
-
-## Keyboard Shortcuts
-
-- `Cmd/Ctrl + S` - Save current entry
-- `Cmd/Ctrl + Enter` - Generate AI summary (on entry detail page)
-
-## Browser Support
-
-- Chrome/Edge 85+
-- Firefox 85+
-- Safari 14+
-
-Passkey support varies by browser and platform. See [Passage documentation](https://docs.passage.id/) for detailed compatibility.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Support
-
-- [Passage Documentation](https://docs.passage.id/)
-- [shadcn/ui Documentation](https://ui.shadcn.com/)
-- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
 
 ---
 
-Built with ❤️ using modern web technologies and secure authentication.
+## Demo Flow
+
+1. User registers/login with Passage (passkey or email code).  
+2. Passage issues a JWT, validated by backend.  
+3. User creates journal entries (Markdown editor).  
+4. On request, backend fetches OpenAI API key securely from 1Password.  
+5. AI summary generated and stored alongside entry.  
+
+---
+
+## License
+
+MIT License.  
