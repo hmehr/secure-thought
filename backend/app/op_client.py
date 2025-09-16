@@ -6,7 +6,13 @@ OP_CONNECT_TOKEN = os.getenv("OP_CONNECT_TOKEN")
 # Secret reference like: op://Journal/LLM_API_KEY/credential
 OP_SECRET_REF   = os.getenv("OP_SECRET_REF")  
 
-CONNECT_BASE = "https://api.1password.com"  # or your Connect host if using Connect
+REGION = (os.getenv("OP_REGION") or "us").lower()
+BASES = {
+    "us": "https://api.1password.com",
+    "eu": "https://api.1password.eu",
+    "ca": "https://api.1password.ca",
+}
+CONNECT_BASE = BASES.get(REGION, BASES["us"])
 
 class OnePasswordConnect:
     @staticmethod
