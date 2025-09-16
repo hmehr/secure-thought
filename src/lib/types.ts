@@ -1,6 +1,3 @@
-/**
- * Core data types for the Secure Journal app
- */
 
 export interface User {
   id: string;

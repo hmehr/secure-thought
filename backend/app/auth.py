@@ -31,7 +31,7 @@ PASSAGE_JWKS_URL = os.getenv("PASSAGE_JWKS_URL", "").strip()
 DEV_BYPASS = os.getenv("PASSAGE_DEV_BYPASS", "0") == "1"
 
 # JWKS cache settings
-_JWKS_TTL_SECONDS = 15 * 60  # 15 minutes
+_JWKS_TTL_SECONDS = 15 * 60
 
 
 # -------- JWKS Cache --------
@@ -57,8 +57,7 @@ class _JWKSCache:
                 headers["If-None-Match"] = self._etag
 
             r = httpx.get(self.url, timeout=10.0, headers=headers)
-            if r.status_code == 304 and self._data:
-                # Not modified; just bump freshness
+            if r.status_code == 304 and self._data:                
                 self._expires_at = time.time() + self.ttl
                 return self._data
 
@@ -83,7 +82,6 @@ def _find_jwk_for_kid(jwks: Dict[str, Any], kid: str) -> Optional[Dict[str, Any]
 # -------- Token Extraction --------
 
 def _extract_bearer_token(request: Request) -> Optional[str]:
-    # Authorization header
     auth = request.headers.get("authorization") or request.headers.get("Authorization")
     if auth and auth.lower().startswith("bearer "):
         return auth.split(" ", 1)[1].strip()
@@ -94,16 +92,12 @@ def _extract_bearer_token(request: Request) -> Optional[str]:
 # -------- Verification --------
 
 def _verify_with_jwks(token: str) -> Dict[str, Any]:
-    # Get header to discover kid/alg
     unverified_header = jwt.get_unverified_header(token)
     kid = unverified_header.get("kid")
     alg = unverified_header.get("alg", "RS256")
-
-    # 1st pass: current cache
     jwks = _jwks_cache.get()
     jwk = _find_jwk_for_kid(jwks, kid) if kid else None
 
-    # If not found, force refresh once and try again
     if not jwk:
         jwks = _jwks_cache.get(force=True)
         jwk = _find_jwk_for_kid(jwks, kid) if kid else None
@@ -114,13 +108,13 @@ def _verify_with_jwks(token: str) -> Dict[str, Any]:
 
     claims = jwt.decode(
         token,
-        jwk,                        # python-jose accepts a JWK dict directly
+        jwk,
         algorithms=[alg],
         audience=PASSAGE_APP_ID or None,
         issuer=PASSAGE_ISSUER or None,
         options=options,
     )
-    # Exp validation is done by jose if present; we can add an extra guard:
+    
     if "exp" in claims and int(claims["exp"]) < int(time.time()):
         raise HTTPException(status_code=401, detail="Token expired")
 
@@ -150,15 +144,10 @@ async def require_claims(request: Request) -> Dict[str, Any]:
     token = _extract_bearer_token(request)
     if not token:
         raise HTTPException(status_code=401, detail="Missing bearer token")
-
-    # Dev bypass path
     if DEV_BYPASS:
         user = _dev_bypass_user(token)
-        if user:
-            # Minimal synthetic claims for dev mode
+        if user:            
             return {"sub": user, "aud": PASSAGE_APP_ID or None, "iss": PASSAGE_ISSUER or None}
-
-    # Real verification
     try:
         return _verify_with_jwks(token)
     except HTTPException:
@@ -206,15 +195,11 @@ async def verify_passage_token(token: str) -> dict:
     """Verify a Passage auth token"""
     try:
         # Remove request_data and directly use the token
-        try:
-            # IMPORTANT: v3 uses snake_case and the "auth" namespace
+        try:            
             user_id = passage.auth.validate_jwt(token)
             if not user_id:
-                raise HTTPException(status_code=401, detail="Invalid token")
-
-            # Get user info with v3 "user" namespace
+                raise HTTPException(status_code=401, detail="Invalid token")            
             user = passage.user.get(user_id)
-
             return {
                 "id": user.id,
                 "email": getattr(user, "email", None) or None,

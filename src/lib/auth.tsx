@@ -11,7 +11,7 @@ import { Passage } from '@passageidentity/passage-js';
 
 declare global {
   interface Window {
-    Passage?: any; // provided by https://psg.so/web.js when using <passage-auth>
+    Passage?: any;
   }
 }
 

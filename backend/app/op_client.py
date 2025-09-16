@@ -5,8 +5,6 @@ from typing import Optional
 from onepassword.client import Client
 
 OP_SECRET_REF = os.getenv("OP_SECRET_REF") 
-
-
 _OP_TOKEN = os.getenv("OP_CONNECT_TOKEN")
 
 class OnePasswordConnect:
@@ -30,14 +28,10 @@ class OnePasswordConnect:
         return OnePasswordConnect._client
 
     @staticmethod
-    async def get_secret_async(secret_ref: str) -> Optional[str]:
-        """
-        Resolve a 1Password secret reference (op://vault/item/field) using the SDK (async).
-        """
+    async def get_secret_async(secret_ref: str) -> Optional[str]:       
         if not secret_ref:
             return None
-        client = await OnePasswordConnect._get_client()
-        # returns the raw string value
+        client = await OnePasswordConnect._get_client()        
         return await client.secrets.resolve(secret_ref)
 
     @staticmethod

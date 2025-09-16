@@ -19,7 +19,6 @@ async def create_entry(
     user_id: str = Depends(require_user_id),
     db: Session = Depends(get_db)
 ):
-    """Create a new journal entry"""
     db_entry = EntryModel(
         user_id=user_id,
         title=entry.title,
@@ -35,7 +34,6 @@ async def get_entries(
     user_id: str = Depends(require_user_id),
     db: Session = Depends(get_db)
 ):
-    """Get all entries for the current user"""
     return db.query(EntryModel).filter(EntryModel.user_id == user_id).all()
 
 @router.get("/{entry_id}", response_model=Entry)
@@ -44,7 +42,6 @@ async def get_entry(
     user_id: str = Depends(require_user_id),
     db: Session = Depends(get_db)
 ):
-    """Get a specific entry"""
     entry = db.query(EntryModel).filter(
         EntryModel.id == entry_id,
         EntryModel.user_id == user_id
@@ -61,7 +58,6 @@ async def delete_entry(
     user_id: str = Depends(require_user_id),
     db: Session = Depends(get_db),
 ):
-    """Delete a specific entry owned by the current user"""
     entry = (
         db.query(EntryModel)
         .filter(EntryModel.id == entry_id, EntryModel.user_id == user_id)
@@ -72,17 +68,16 @@ async def delete_entry(
 
     db.delete(entry)
     db.commit()
-    # 204 No Content per decorator
+    
     return
 
 @router.put("/{entry_id}", response_model=Entry)
 async def update_entry(
     entry_id: str,
-    entry: EntryCreate,  # expects { "title": "...", "body": "..." }
+    entry: EntryCreate,
     user_id: str = Depends(require_user_id),
     db: Session = Depends(get_db),
 ):
-    """Update an existing entry (full replace semantics)."""
     db_entry = (
         db.query(EntryModel)
         .filter(EntryModel.id == entry_id, EntryModel.user_id == user_id)
@@ -105,7 +100,6 @@ async def summarize_entry(
     user_id: str = Depends(require_user_id),
     db: Session = Depends(get_db),
 ):
-    """Summarize a specific entry using OpenAI (v1 client)."""
     entry = (
         db.query(EntryModel)
         .filter(EntryModel.id == entry_id, EntryModel.user_id == user_id)
