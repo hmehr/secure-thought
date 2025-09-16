@@ -207,25 +207,18 @@ async def verify_passage_token(token: str) -> dict:
     try:
         # Remove request_data and directly use the token
         try:
-            # Get Passage JWT from the request's Authorization header
-            auth_token = token.strip()
-            if auth_token.lower().startswith('bearer '):
-                auth_token = auth_token[7:].strip()
-                
-            # Validate JWT using Passage
-            user_id = passage.validateJwt(auth_token)
+            # IMPORTANT: v3 uses snake_case and the "auth" namespace
+            user_id = passage.auth.validate_jwt(token)
             if not user_id:
                 raise HTTPException(status_code=401, detail="Invalid token")
-                
-            # Get user info
-            user = passage.getUser(user_id)
-            print(f"[auth] User authenticated: {user_id}")
-            
+
+            # Get user info with v3 "user" namespace
+            user = passage.user.get(user_id)
+
             return {
-                "id": user_id,
-                "email": user.email if user else None
-            }
-            
+                "id": user.id,
+                "email": getattr(user, "email", None) or None,
+            }                
         except Exception as e:
             print(f"[auth] JWT validation failed: {str(e)}")
             raise HTTPException(status_code=401, detail="Invalid token")
